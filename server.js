@@ -6,6 +6,17 @@ app.use(express.json());
 
 app.get('/health', (req, res) => res.status(200).json({ ok: true }));
 
+app.get('/', (req, res) => {
+  res.status(200).json({
+    service: 'ticket-sales',
+    endpoints: [
+      'GET /health',
+      'GET /events/:id/seats?status=free|reserved&limit=&offset=',
+      'POST /events/:id/seats/:seatId/reserve',
+    ],
+  });
+});
+
 app.use((err, req, res, next) => {
   if (err && err.type === 'entity.parse.failed') {
     return res.status(400).json({ error: 'body must be valid JSON' });
