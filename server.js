@@ -4,6 +4,8 @@ const db = require('./db');
 const app = express();
 app.use(express.json());
 
+app.get('/health', (req, res) => res.status(200).json({ ok: true }));
+
 app.use((err, req, res, next) => {
   if (err && err.type === 'entity.parse.failed') {
     return res.status(400).json({ error: 'body must be valid JSON' });
