@@ -38,3 +38,6 @@ size grows linearly with data. Decision to revisit: add pagination.
 npm install
 node seed.js
 npm start
+
+## Changelog
+- Added pagination, health check, and root info endpoints.
