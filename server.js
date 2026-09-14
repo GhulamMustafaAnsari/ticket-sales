@@ -24,17 +24,28 @@ app.get('/events/:id/seats', (req, res) => {
   }
 
   const status = req.query.status;
+
+  const limit = Math.min(Number(req.query.limit) || 500, 2000);
+  const offset = Number(req.query.offset) || 0;
+  if (!Number.isInteger(limit) || limit <= 0) {
+    return res.status(400).json({ error: 'limit: must be a positive integer' });
+  }
+  if (!Number.isInteger(offset) || offset < 0) {
+    return res.status(400).json({ error: 'offset: must be a non-negative integer' });
+  }
+
   let rows;
   if (status) {
     if (!['free', 'reserved'].includes(status)) {
       return res.status(400).json({ error: 'status: must be "free" or "reserved"' });
     }
-    // Uses the composite index on (event_id, status) — see README for query plan.
     rows = db
-      .prepare('SELECT * FROM seats WHERE event_id = ? AND status = ? ORDER BY id')
-      .all(eventId, status);
+      .prepare('SELECT * FROM seats WHERE event_id = ? AND status = ? ORDER BY id LIMIT ? OFFSET ?')
+      .all(eventId, status, limit, offset);
   } else {
-    rows = db.prepare('SELECT * FROM seats WHERE event_id = ? ORDER BY id').all(eventId);
+    rows = db
+      .prepare('SELECT * FROM seats WHERE event_id = ? ORDER BY id LIMIT ? OFFSET ?')
+      .all(eventId, limit, offset);
   }
 
   res.status(200).json(rows);
@@ -57,18 +68,13 @@ app.post('/events/:id/seats/:seatId/reserve', (req, res) => {
 
   const reservedBy = (req.body && req.body.reservedBy) || 'anonymous';
 
-  // Atomic reserve: this single UPDATE only flips a seat from 'free' to
-  // 'reserved' if it is STILL 'free' at the moment it runs. better-sqlite3
-  // executes synchronously and SQLite serialises writes to a single file,
-  // so even if two requests arrive back-to-back, only one UPDATE can see
-  // status = 'free' and succeed — the second sees 0 rows changed.
   const reserve = db.transaction(() => {
     const result = db
       .prepare("UPDATE seats SET status = 'reserved' WHERE id = ? AND status = 'free'")
       .run(seatId);
 
     if (result.changes === 0) {
-      return null; // already taken
+      return null;
     }
 
     db.prepare(
