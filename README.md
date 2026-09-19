@@ -42,3 +42,4 @@ npm start
 ## Changelog
 - Added pagination, health check, and root info endpoints.
 - Update 1: Ticket listing structure improved
+- - Update 2: Backend error handling notes
